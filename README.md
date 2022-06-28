@@ -14,7 +14,7 @@
 <ul>
   <li>Node.js (use express)</li>
   <li>MongoDB</li>
-  <li>[newsapis](https://newsapi.org/)</li>
+  <li><a href="https://newsapi.org/">newsapis</a></li>
 </ul>
   
 
