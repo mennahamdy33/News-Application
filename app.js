@@ -1,9 +1,8 @@
 const express = require("express");
 const app = express();
-require("express-async-errors");
 const userRouter = require("./users/userRouter");
 // const cors  =require('cors');
-
+require("express-async-errors");
 require("dotenv").config();
 require("./dbConnection");
 
