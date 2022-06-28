@@ -28,31 +28,32 @@ userRouter.post("/login", async (req, res, next) => {
   const token = await createToken(user.id);
   // save the token in the header cookies
   res
-    .cookie("nToken", token, { maxAge: 900000, httpOnly: true })
+    .cookie("nToken", token, {httpOnly: true })
     .send({ success: true });
 });
 // the router will check the authentication before all theroutes after it
 userRouter.use(async (req, res, next) => {
-  const token = req.headers.cookie?.split("=")[1];
-  if (!token) next(tokenError);
+  const token = req.cookies.nToken;
+  if (!token) return next(tokenError);
   const id = await getIdFromToken(token);
   req.id = id;
   next();
-  
 });
+
 
 // home page to view all the articles from the sources subscribed by this user
 userRouter.get("/", async (req, res, next) => {
   const user = await UserModel.findById(req.id);
   const userSources = user.sources.join(",");
   if (userSources)
-    await axios
+
+  return await axios
       .get(
         `https://newsapi.org/v2/top-headlines?sources=${userSources}&apiKey=50c2a1639852480b8fd966af42ac6af5`
       )
       .then(function (response) {
         // handle success
-        return res.send(response.data.articles);
+         res.send(response.data.articles);
       });
   res.send({});
 });

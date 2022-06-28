@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const userRouter = require("./users/userRouter");
+var cookieParser = require('cookie-parser')
 // const cors  =require('cors');
 require("express-async-errors");
 require("dotenv").config();
@@ -11,6 +12,7 @@ const port = process.env.PORT || 3000;
 // app.use(cors())
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.get(["/", "/home"], (req, res) => {
   res.send("Welcome to the home page!");
