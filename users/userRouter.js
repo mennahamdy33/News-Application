@@ -7,7 +7,10 @@ const UserModel = require("./userModel");
 const userRouter = express.Router();
 const createToken = require("../helpers/createToken");
 const addValidation = require("./validation/userAdd");
-const logger = require('../services/loggerService')
+const logger = require("../services/loggerService");
+
+const { addCache, checkForChache } = require("../services/cacheService");
+
 userRouter.post("/registeration", addValidation, async (req, res, next) => {
   const { fullName, email, password } = req.body;
 
@@ -15,7 +18,7 @@ userRouter.post("/registeration", addValidation, async (req, res, next) => {
   const hashedPassword = await bcrypt.hash(password, saltRounds);
 
   await UserModel.create({ fullName, password: hashedPassword, email });
-  logger.info("user register")
+  logger.info("user register");
   res.send({ success: true });
 });
 
@@ -28,7 +31,7 @@ userRouter.post("/login", async (req, res, next) => {
   const result = await bcrypt.compare(password, user.password);
   if (!result) return next(authError);
   const token = await createToken(user.id);
-  logger.info("user loggedin")
+  logger.info("user loggedin");
   // save the token in the header cookies
   res.cookie("nToken", token, { httpOnly: true }).send({ success: true });
 });
@@ -41,50 +44,59 @@ userRouter.use(async (req, res, next) => {
   next();
 });
 
-// home page to view all the articles from the sources subscribed by this user
 userRouter.get("/", async (req, res, next) => {
- 
   const user = await UserModel.findById(req.id);
-  const userSources = user.sources.join(",");
-  if (userSources)
-    return await axios
-      .get(
-        `https://newsapi.org/v2/top-headlines?sources=${userSources}&apiKey=50c2a1639852480b8fd966af42ac6af5`
-      )
-      .then(function (response) {
-        // handle success
-        res.send(response.data.articles);
-      });
-  res.send({});
+  const userSources = user.sources.sort().join(",");
 
-});
-
-// to view all the sources
-userRouter.get("/sources", async (req, res, next) => {
-  const user = await UserModel.findById(req.id);
-
-  // get all the sources
-  await axios
-    .get(
-      "https://newsapi.org/v2/top-headlines/sources?apiKey=50c2a1639852480b8fd966af42ac6af5"
-    )
-    .then((response) => {
-      // handle success
-      const allSources = response.data.sources;
-      // check the subscribued sources for this user
-      const sources = allSources.map((source) => {
-        return {
-          ...source,
-          subscribed: user.sources.includes(source.id) ? true : false,
-        };
-      });
-
-      res.send(sources);
+  if (userSources) {
+    checkForChache(userSources).then(async (data) => {
+      console.log(data.length);
+      if (data.length) {
+        console.log("data");
+        console.log(data.length);
+        return res.send(data);
+      } else {
+        console.log("no data");
+        await axios
+          .get(
+            `https://newsapi.org/v2/top-headlines?sources=${userSources}&apiKey=50c2a1639852480b8fd966af42ac6af5`
+          )
+          .then(function (response) {
+            // handle success
+            console.log(userSources);
+            addCache(userSources, response.data.articles);
+            res.send(response.data.articles);
+          });
+      }
     });
+  } else {
+    res.send({});
+  }
 });
 
-// if the user subscribe a new source
-userRouter.patch("/sources/:id/subscribe", async (req, res, next) => {
+userRouter.get("/sources", async (req, res, next) => {
+  //check for cache
+  let allSources = [];
+  checkForChache("sources").then(async (data) => {
+    if (data.length) {
+      allSources = data;
+      res.send(allSources);
+    } else {
+      await axios
+        .get(
+          "https://newsapi.org/v2/top-headlines/sources?apiKey=50c2a1639852480b8fd966af42ac6af5"
+        )
+        .then((response) => {
+          // handle success
+          allSources = response.data.sources;
+          addCache("sources", allSources);
+          res.send(allSources);
+        });
+    }
+  });
+});
+
+userRouter.post("/sources/:id/subscribe", async (req, res, next) => {
   const { id } = req.params;
   const userId = req.id;
 
@@ -94,7 +106,6 @@ userRouter.patch("/sources/:id/subscribe", async (req, res, next) => {
   res.send({ success: true });
 });
 
-// if the user unsubscribe a source
 userRouter.patch("/sources/:id/unsubscribe", async (req, res, next) => {
   const { id } = req.params;
 
@@ -106,12 +117,11 @@ userRouter.patch("/sources/:id/unsubscribe", async (req, res, next) => {
   res.send({ success: true });
 });
 
-// logout be clearing the token
 userRouter.get("/logout", (req, res) => {
+  logger.info("user logged out");
   res.clearCookie("nToken").send({ success: true });
 });
 
-// if router not found
 userRouter.use((req, res, next) => {
   res.status(404).send({ error: "Not found" });
 });

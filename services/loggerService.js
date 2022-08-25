@@ -6,11 +6,11 @@ const pinoms = require("pino-multi-stream").multistream;
 const ecsFormat = require("@elastic/ecs-pino-format");
 
 const streamToElastic = pinoElastic({
-  index: "an-index",
+  index: "logs",
   consistency: "one",
   node: "http://localhost:9200",
   "es-version": 7,
-  "flush-bytes": 1000,
+  "flush-bytes": 10,
 });
 const pinoOptions = {
   level: process.env.PINO_LOG_LEVEL || "info",
